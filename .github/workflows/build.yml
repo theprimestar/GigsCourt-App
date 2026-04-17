@@ -1,24 +1,21 @@
 name: Build App
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       platform:
         description: 'Platform to build'
         required: true
-        default: 'both'
+        default: 'android'
         type: choice
         options:
-          - both
           - android
           - ios
+          - both
 
 jobs:
   build-android:
-    if: ${{ github.event.inputs.platform == 'android' || github.event.inputs.platform == 'both' || github.event_name == 'push' }}
+    if: ${{ github.event.inputs.platform == 'android' || github.event.inputs.platform == 'both' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -40,7 +37,12 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android APK
-        run: eas build --platform android --profile preview --local --output build/app-release.apk
+        run: |
+          npx expo prebuild --platform android
+          cd android
+          ./gradlew assembleRelease
+          mkdir -p ../build
+          cp app/build/outputs/apk/release/app-release.apk ../build/
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -71,7 +73,12 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build iOS Simulator App
-        run: eas build --platform ios --profile preview --local --output build/GigsCourt.app
+        run: |
+          npx expo prebuild --platform ios
+          cd ios
+          xcodebuild -workspace GigsCourt.xcworkspace -scheme GigsCourt -sdk iphonesimulator -configuration Release
+          mkdir -p ../build
+          cp -r build/Release-iphonesimulator/GigsCourt.app ../build/
 
       - name: Upload iOS Artifact
         uses: actions/upload-artifact@v4

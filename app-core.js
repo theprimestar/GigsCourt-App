@@ -1127,3 +1127,625 @@ export function OnboardingScreen({ navigation }) {
 }
 
 console.log('✅ app-core.js Part 2 loaded');
+
+// ========================================
+// SETTINGS SCREEN
+// ========================================
+
+export function SettingsScreen({ onClose }) {
+    const [loading, setLoading] = useState(false);
+
+    const handleChangePassword = async () => {
+        const user = auth.currentUser;
+        if (!user || !user.email) {
+            global.showToast('No email found', 'error');
+            return;
+        }
+        
+        try {
+            await sendPasswordResetEmail(auth, user.email);
+            global.showToast('Password reset email sent! Check your inbox.', 'success');
+            haptic('success');
+        } catch (error) {
+            console.error('Password reset error:', error);
+            global.showToast('Error sending reset email', 'error');
+        }
+    };
+
+    const handleDeactivate = () => {
+        Alert.alert(
+            'Deactivate Account',
+            'Are you sure? Your account will be deactivated and deleted after 14 days.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Deactivate',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setLoading(true);
+                        try {
+                            const user = auth.currentUser;
+                            if (!user) return;
+
+                            // Update Firestore
+                            const userRef = doc(db, 'users', user.uid);
+                            await updateDoc(userRef, {
+                                isActive: false,
+                                deactivatedAt: new Date().toISOString(),
+                                deactivateExpires: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+                            });
+
+                            // Update Supabase
+                            await supabase
+                                .from('provider_locations')
+                                .update({
+                                    deactivated_at: new Date().toISOString(),
+                                    deactivate_expires: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+                                })
+                                .eq('user_id', user.uid);
+
+                            global.showToast('Account deactivated. Will be deleted after 14 days.', 'info');
+                            
+                            await signOut(auth);
+                            currentUser = null;
+                            currentUserData = null;
+                            
+                            // Navigation handled by App.js
+                        } catch (error) {
+                            console.error('Deactivate error:', error);
+                            global.showToast('Error deactivating account', 'error');
+                        } finally {
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleLogout = () => {
+        Alert.alert(
+            'Logout',
+            'Are you sure you want to logout?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Logout',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await signOut(auth);
+                            currentUser = null;
+                            currentUserData = null;
+                            global.showToast('Logged out', 'info');
+                            // Navigation handled by App.js
+                        } catch (error) {
+                            console.error('Logout error:', error);
+                            global.showToast('Error logging out', 'error');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    return (
+        <View style={settingsStyles.container}>
+            <View style={settingsStyles.header}>
+                <TouchableOpacity onPress={onClose}>
+                    <Text style={settingsStyles.closeButton}>✕</Text>
+                </TouchableOpacity>
+                <Text style={settingsStyles.title}>Settings</Text>
+                <View style={{ width: 32 }} />
+            </View>
+
+            <View style={settingsStyles.content}>
+                <TouchableOpacity 
+                    style={settingsStyles.button}
+                    onPress={handleChangePassword}
+                    disabled={loading}
+                >
+                    <Text style={settingsStyles.buttonText}>🔐 Change Password</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    style={[settingsStyles.button, settingsStyles.dangerButton]}
+                    onPress={handleDeactivate}
+                    disabled={loading}
+                >
+                    <Text style={[settingsStyles.buttonText, settingsStyles.dangerButtonText]}>
+                        ⚠️ Deactivate Account
+                    </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    style={[settingsStyles.button, settingsStyles.logoutButton]}
+                    onPress={handleLogout}
+                    disabled={loading}
+                >
+                    <Text style={settingsStyles.buttonText}>🚪 Logout</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+}
+
+// ========================================
+// STYLES - AUTH SCREEN
+// ========================================
+
+const authStyles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#E67E22',
+    },
+    scrollContent: {
+        flexGrow: 1,
+        justifyContent: 'center',
+        padding: 20,
+    },
+    logoContainer: {
+        alignItems: 'center',
+        marginBottom: 30,
+    },
+    logo: {
+        fontSize: 36,
+        fontWeight: '800',
+        marginBottom: 10,
+    },
+    logoGigs: {
+        color: '#fff',
+    },
+    logoCourt: {
+        color: '#FFD700',
+    },
+    subtitle: {
+        fontSize: 24,
+        fontWeight: '600',
+        color: '#fff',
+        marginBottom: 5,
+    },
+    subtitleSmall: {
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.8)',
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        borderRadius: 30,
+        padding: 4,
+        marginBottom: 20,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 12,
+        alignItems: 'center',
+        borderRadius: 26,
+    },
+    activeTab: {
+        backgroundColor: '#fff',
+    },
+    tabText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#fff',
+    },
+    activeTabText: {
+        color: '#E67E22',
+    },
+    form: {
+        backgroundColor: '#fff',
+        borderRadius: 24,
+        padding: 20,
+    },
+    input: {
+        backgroundColor: '#f5f5f5',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        fontSize: 16,
+        marginBottom: 16,
+        color: '#262626',
+    },
+    primaryButton: {
+        backgroundColor: '#E67E22',
+        borderRadius: 30,
+        paddingVertical: 14,
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    primaryButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    linkButton: {
+        alignItems: 'center',
+        marginTop: 16,
+    },
+    linkText: {
+        color: '#E67E22',
+        fontSize: 14,
+    },
+});
+
+// ========================================
+// STYLES - VERIFICATION SCREEN
+// ========================================
+
+const verificationStyles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#E67E22',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    card: {
+        backgroundColor: '#fff',
+        borderRadius: 32,
+        padding: 30,
+        width: '100%',
+        maxWidth: 400,
+        alignItems: 'center',
+    },
+    logo: {
+        fontSize: 32,
+        fontWeight: '800',
+        marginBottom: 20,
+    },
+    logoGigs: {
+        color: '#E67E22',
+    },
+    logoCourt: {
+        color: '#E67E22',
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: '600',
+        color: '#262626',
+        marginBottom: 10,
+    },
+    subtitle: {
+        fontSize: 14,
+        color: '#8e8e8e',
+        textAlign: 'center',
+    },
+    email: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#E67E22',
+        marginVertical: 5,
+    },
+    instruction: {
+        fontSize: 14,
+        color: '#8e8e8e',
+        textAlign: 'center',
+        marginBottom: 24,
+    },
+    primaryButton: {
+        backgroundColor: '#E67E22',
+        borderRadius: 30,
+        paddingVertical: 14,
+        paddingHorizontal: 30,
+        width: '100%',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    primaryButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    secondaryButton: {
+        borderWidth: 1,
+        borderColor: '#E67E22',
+        borderRadius: 30,
+        paddingVertical: 14,
+        paddingHorizontal: 30,
+        width: '100%',
+        alignItems: 'center',
+    },
+    secondaryButtonText: {
+        color: '#E67E22',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+});
+
+// ========================================
+// STYLES - ONBOARDING SCREEN
+// ========================================
+
+const onboardingStyles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#E67E22',
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 60 : 40,
+        paddingBottom: 15,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    closeButton: {
+        fontSize: 24,
+        color: '#fff',
+        padding: 8,
+    },
+    stepIndicator: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#fff',
+    },
+    content: {
+        flexGrow: 1,
+        padding: 20,
+    },
+    stepContainer: {
+        backgroundColor: '#fff',
+        borderRadius: 24,
+        padding: 24,
+        minHeight: 400,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: '#262626',
+        marginBottom: 8,
+    },
+    subtitle: {
+        fontSize: 14,
+        color: '#8e8e8e',
+        marginBottom: 24,
+    },
+    input: {
+        backgroundColor: '#f5f5f5',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        fontSize: 16,
+        marginBottom: 16,
+        color: '#262626',
+    },
+    textArea: {
+        minHeight: 80,
+        textAlignVertical: 'top',
+    },
+    servicesContainer: {
+        maxHeight: 350,
+        marginBottom: 10,
+    },
+    categoryContainer: {
+        marginBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
+        paddingBottom: 8,
+    },
+    categoryHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+    },
+    categoryArrow: {
+        fontSize: 12,
+        color: '#8e8e8e',
+        marginRight: 8,
+    },
+    categoryName: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#262626',
+        flex: 1,
+    },
+    categoryCount: {
+        fontSize: 12,
+        color: '#8e8e8e',
+    },
+    servicesList: {
+        paddingLeft: 20,
+        paddingBottom: 8,
+    },
+    serviceItem: {
+        backgroundColor: '#f5f5f5',
+        borderRadius: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        marginBottom: 6,
+    },
+    serviceItemSelected: {
+        backgroundColor: '#E67E22',
+    },
+    serviceText: {
+        fontSize: 14,
+        color: '#262626',
+    },
+    serviceTextSelected: {
+        color: '#fff',
+    },
+    selectedCount: {
+        fontSize: 13,
+        color: '#8e8e8e',
+        textAlign: 'right',
+        marginTop: 8,
+    },
+    locationPreview: {
+        backgroundColor: '#f5f5f5',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 16,
+        alignItems: 'center',
+    },
+    locationText: {
+        fontSize: 14,
+        color: '#262626',
+    },
+    locationButton: {
+        backgroundColor: '#f5f5f5',
+        borderRadius: 30,
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+    locationButtonText: {
+        fontSize: 14,
+        color: '#E67E22',
+        fontWeight: '500',
+    },
+    infoBox: {
+        backgroundColor: '#f5f5f5',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 20,
+    },
+    infoItem: {
+        fontSize: 14,
+        color: '#262626',
+        marginBottom: 10,
+        lineHeight: 20,
+    },
+    freeCredits: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#E67E22',
+        textAlign: 'center',
+    },
+    photoContainer: {
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    photo: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        borderWidth: 3,
+        borderColor: '#E67E22',
+        marginBottom: 8,
+    },
+    photoPlaceholder: {
+        fontSize: 48,
+        backgroundColor: '#f5f5f5',
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        textAlign: 'center',
+        lineHeight: 120,
+        borderWidth: 3,
+        borderColor: '#E67E22',
+        marginBottom: 8,
+    },
+    photoText: {
+        fontSize: 14,
+        color: '#E67E22',
+    },
+    footer: {
+        flexDirection: 'row',
+        padding: 20,
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+    },
+    primaryButton: {
+        flex: 1,
+        backgroundColor: '#E67E22',
+        borderRadius: 30,
+        paddingVertical: 14,
+        alignItems: 'center',
+    },
+    primaryButtonWithBack: {
+        flex: 2,
+        marginLeft: 10,
+    },
+    primaryButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    secondaryButton: {
+        flex: 1,
+        backgroundColor: '#f5f5f5',
+        borderRadius: 30,
+        paddingVertical: 14,
+        alignItems: 'center',
+    },
+    secondaryButtonText: {
+        color: '#262626',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+});
+
+// ========================================
+// STYLES - SETTINGS SCREEN
+// ========================================
+
+const settingsStyles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#E67E22',
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 60 : 40,
+        paddingBottom: 15,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    closeButton: {
+        fontSize: 24,
+        color: '#fff',
+        padding: 8,
+    },
+    title: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#fff',
+    },
+    content: {
+        flex: 1,
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 20,
+        marginTop: 10,
+    },
+    button: {
+        backgroundColor: '#f5f5f5',
+        borderRadius: 30,
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        marginBottom: 12,
+    },
+    buttonText: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#262626',
+        textAlign: 'center',
+    },
+    dangerButton: {
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#ea4335',
+    },
+    dangerButtonText: {
+        color: '#ea4335',
+    },
+    logoutButton: {
+        backgroundColor: '#E67E22',
+        marginTop: 20,
+    },
+});
+
+// Export styles for use in other files if needed
+export const CoreStyles = {
+    auth: authStyles,
+    verification: verificationStyles,
+    onboarding: onboardingStyles,
+    settings: settingsStyles,
+};
+
+console.log('✅ app-core.js fully loaded');

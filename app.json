@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "GigsCourt",
+    "slug": "gigscourt",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#faf7f2"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gigscourt.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "GigsCourt needs camera access to upload profile photos and portfolio images",
+        "NSPhotoLibraryUsageDescription": "GigsCourt needs photo library access to upload profile photos and portfolio images",
+        "NSLocationWhenInUseUsageDescription": "GigsCourt needs your location to find service providers near you"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#E67E22"
+      },
+      "package": "com.gigscourt.app",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "plugins": [
+      "expo-image-picker",
+      "expo-location",
+      "expo-notifications",
+      "expo-haptics",
+      "expo-splash-screen"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-will-go-here"
+      }
+    },
+    "owner": "your-expo-username",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/your-project-id-will-go-here"
+    }
+  }
+}

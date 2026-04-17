@@ -1,5 +1,6 @@
 // ========================================
 // GigsCourt - React Native App Entry
+// With Animated Video Splash Screen
 // ========================================
 
 import React, { useEffect, useState, useRef } from 'react';
@@ -11,9 +12,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
+import { Video, ResizeMode } from 'expo-av';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-// Import core module (contains all Firebase/Supabase initialization and auth logic)
+// Import core module
 import {
     initializeAppCore,
     getAuthState,
@@ -50,8 +52,63 @@ Notifications.setNotificationHandler({
     }),
 });
 
+// Custom Animated Splash Component
+function AnimatedSplashScreen({ onFinish }) {
+    const videoRef = useRef(null);
+    const [videoLoaded, setVideoLoaded] = useState(false);
+    const [videoError, setVideoError] = useState(false);
+
+    useEffect(() => {
+        // Hide the native splash screen once video is ready
+        if (videoLoaded) {
+            SplashScreen.hideAsync();
+        }
+    }, [videoLoaded]);
+
+    const handleVideoReady = () => {
+        setVideoLoaded(true);
+    };
+
+    const handleVideoError = (error) => {
+        console.log('Video splash error, falling back to static:', error);
+        setVideoError(true);
+        // Fall back to static splash
+        SplashScreen.hideAsync();
+        setTimeout(onFinish, 500);
+    };
+
+    const handlePlaybackStatusUpdate = (status) => {
+        if (status.didJustFinish) {
+            // Video finished playing, transition to app
+            onFinish();
+        }
+    };
+
+    // If video errors, show nothing (static splash already handled)
+    if (videoError) {
+        return null;
+    }
+
+    return (
+        <View style={splashStyles.container}>
+            <Video
+                ref={videoRef}
+                source={require('./assets/splash.mp4')}
+                style={splashStyles.video}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay={true}
+                isMuted={true}
+                isLooping={false}
+                onReadyForDisplay={handleVideoReady}
+                onError={handleVideoError}
+                onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+            />
+        </View>
+    );
+}
+
 // Bottom Tab Navigator
-function MainTabs({ isAdmin }) {
+function MainTabs({ isAdmin, onOpenSettings }) {
     return (
         <Tab.Navigator
             screenOptions={{
@@ -106,6 +163,7 @@ function MainTabs({ isAdmin }) {
 // Main App Component
 export default function App() {
     const [isReady, setIsReady] = useState(false);
+    const [showSplash, setShowSplash] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [needsOnboarding, setNeedsOnboarding] = useState(false);
     const [needsVerification, setNeedsVerification] = useState(false);
@@ -125,9 +183,7 @@ export default function App() {
                 if (authState.user) {
                     const userData = getCurrentUserData();
                     
-                    // Check if email is verified
                     if (authState.user.emailVerified) {
-                        // Check if profile exists (has displayName)
                         if (userData?.displayName && userData?.displayName !== 'User') {
                             setIsAuthenticated(true);
                             setNeedsOnboarding(false);
@@ -140,7 +196,6 @@ export default function App() {
                         setNeedsVerification(true);
                     }
                     
-                    // Check admin access
                     const adminEmail = 'theprimestarventures@gmail.com';
                     if (authState.user.email === adminEmail) {
                         setIsAdmin(true);
@@ -152,20 +207,26 @@ export default function App() {
                 console.error('App initialization error:', error);
             } finally {
                 setIsReady(true);
-                await SplashScreen.hideAsync();
             }
         }
         
         prepare();
     }, []);
 
-    // Handle navigation ref for programmatic navigation
+    const handleSplashFinish = () => {
+        setShowSplash(false);
+    };
+
     const handleNavigationReady = () => {
-        // Make navigation available globally for core module
         if (navigationRef.current) {
             global.navigationRef = navigationRef;
         }
     };
+
+    // Show animated splash screen
+    if (showSplash) {
+        return <AnimatedSplashScreen onFinish={handleSplashFinish} />;
+    }
 
     // Show nothing while loading
     if (!isReady) {
@@ -178,21 +239,16 @@ export default function App() {
                 <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
                     <Stack.Navigator screenOptions={{ headerShown: false }}>
                         {!isAuthenticated ? (
-                            // Auth stack
                             <Stack.Screen name="Auth" component={AuthScreen} />
                         ) : needsVerification ? (
-                            // Email verification stack
                             <Stack.Screen name="Verification" component={VerificationScreen} />
                         ) : needsOnboarding ? (
-                            // Onboarding stack
                             <Stack.Screen name="Onboarding" component={OnboardingScreen} />
                         ) : showSettings ? (
-                            // Settings modal
                             <Stack.Screen name="Settings">
                                 {() => <SettingsScreen onClose={() => setShowSettings(false)} />}
                             </Stack.Screen>
                         ) : (
-                            // Main app stack
                             <Stack.Screen name="Main">
                                 {() => (
                                     <MainTabs 
@@ -227,6 +283,18 @@ const styles = StyleSheet.create({
         fontSize: 10,
         fontWeight: '500',
         marginTop: 4,
+    },
+});
+
+const splashStyles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#faf7f2',
+    },
+    video: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
     },
 });
 

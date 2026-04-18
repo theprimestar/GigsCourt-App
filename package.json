@@ -34,7 +34,6 @@
     "expo-constants": "~16.0.2",
     "firebase": "^10.8.0",
     "@supabase/supabase-js": "^2.39.0",
-    "@paystack/paystack-react-native": "github:paystackhq/paystack-react-native"
     "react-native-webview": "13.8.6",
     "react-native-reanimated": "~3.10.1"
   },

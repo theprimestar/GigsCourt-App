@@ -1,6 +1,6 @@
 // ========================================
 // GigsCourt - Features Module (React Native)
-// Home Feed, Search, Chat, Profile, Admin
+// Home Feed, Search, Chat, Profile, Admin.
 // ========================================
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';

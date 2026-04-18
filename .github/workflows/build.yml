@@ -37,12 +37,13 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android APK
-  run: |
-    npx expo prebuild --platform android --clear
-    cd android
-    ./gradlew assembleRelease
-    mkdir -p ../build
-    cp app/build/outputs/apk/release/app-release.apk ../build/
+        run: |
+          npx expo prebuild --platform android --clear
+          cd android
+          ./gradlew assembleRelease
+          mkdir -p ../build
+          cp app/build/outputs/apk/release/app-release.apk ../build/
+
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -73,7 +74,7 @@ jobs:
 
       - name: Build iOS Simulator App
         run: |
-          npx expo prebuild --platform ios
+          npx expo prebuild --platform ios --clear
           cd ios
           xcodebuild -workspace GigsCourt.xcworkspace -scheme GigsCourt -sdk iphonesimulator -configuration Release
           mkdir -p ../build
